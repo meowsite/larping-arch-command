@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V3] - Ultimate Power-User Arch Linux Installer
+# ARCH EXTREME [V4] - Ultimate Power-User Arch Linux Installer
 # Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru / Yay
-# Ananicy-CPP | UFW Firewall | Hungarian Stack | Zero-Bloat KDE Plasma
+# Ananicy-CPP + CachyOS Rules | UFW Firewall | Hungarian Stack | Clean KDE Plasma
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V3"
+SCRIPT_VERSION="V4"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -32,12 +32,12 @@ swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
- █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██████╗ 
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║╚════██╗
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║ █████╔╝
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝ ╚════██╗
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ██████╔╝
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝  ╚═════╝ 
+ █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██╗   ██╗
+██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██║   ██║
+███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║██║   ██║
+██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝███████║
+██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ╚════██║
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝       ╚═╝
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
 echo ""
@@ -146,8 +146,9 @@ mount -o "$BTRFS_OPTS,subvol=@var_cache" "$ROOT_PART" /mnt/var/cache
 mount -o "$BTRFS_OPTS,subvol=@var_tmp" "$ROOT_PART" /mnt/var/tmp
 mount "$BOOT_PART" /mnt/boot
 
-# Disable CoW on log and tmp subvolumes to prevent fragmentation
+# Disable CoW on write-heavy subvolumes to avoid fragmentation
 chattr +C /mnt/var/log 2>/dev/null || true
+chattr +C /mnt/var/cache 2>/dev/null || true
 chattr +C /mnt/var/tmp 2>/dev/null || true
 
 # 5. Live Environment Fixes & Package Installation
@@ -159,7 +160,6 @@ sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 pacman -Sy --noconfirm archlinux-keyring
 
 echo "[*] Installing system packages via pacstrap..."
-# [V3 PATCH] Removed non-existent package 'systemd-timesyncd' (service is provided by systemd/base)
 BASE_PKGS=(
     base base-devel linux-zen linux-zen-headers linux-firmware intel-ucode
     btrfs-progs dosfstools e2fsprogs git nano bash-completion curl wget
@@ -205,8 +205,6 @@ mkdir -p /mnt/etc
 cp -L /etc/resolv.conf /mnt/etc/resolv.conf 2>/dev/null || true
 
 # 6. Target Chroot Configuration Script
-# [V3 PATCH] Uses quoted heredoc ('CHROOT_SCRIPT') and positional parameters ($1-$4)
-# to completely eliminate variable escaping and heredoc expansion errors.
 cat << 'CHROOT_SCRIPT' > /mnt/root/setup_chroot.sh
 #!/usr/bin/env bash
 set -euo pipefail
@@ -277,8 +275,8 @@ echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 sudo -u "$USERNAME" xdg-user-dirs-update || true
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
 
-# AUR Helper Setup: Robust Paru build with Yay failover
-echo "[*] Installing AUR helper..."
+# AUR Helper Setup: Paru with automatic Yay fallback
+echo "[*] Building and configuring AUR helper..."
 AUR_TOOL=""
 
 if sudo -u "$USERNAME" bash -c '
@@ -292,7 +290,6 @@ if sudo -u "$USERNAME" bash -c '
     if sudo -u "$USERNAME" paru --version &>/dev/null; then
         AUR_TOOL="paru"
     else
-        # Dynamic soname patch for libalpm mismatch if present
         ACTIVE_ALPM=$(ls -1 /usr/lib/libalpm.so.* 2>/dev/null | grep -E 'libalpm\.so\.[0-9]+$' | head -n 1)
         if [[ -n "$ACTIVE_ALPM" ]]; then
             ln -sf "$ACTIVE_ALPM" /usr/lib/libalpm.so.15
@@ -306,7 +303,7 @@ if sudo -u "$USERNAME" bash -c '
 fi
 
 if [[ -z "$AUR_TOOL" ]]; then
-    echo "[-] Paru library mismatch encountered. Deploying yay-bin (independent runtime)..."
+    echo "[-] Deploying yay-bin (independent runtime)..."
     pacman -Rns --noconfirm paru-bin 2>/dev/null || true
     sudo -u "$USERNAME" bash -c '
         cd /tmp
@@ -319,8 +316,19 @@ if [[ -z "$AUR_TOOL" ]]; then
     AUR_TOOL="yay"
 fi
 
+# [V4 PATCH] Standalone Ananicy-CPP + Direct CachyOS Rules Injection (Immune to AUR removals)
 echo "[*] Installing Ananicy-CPP via $AUR_TOOL..."
-sudo -u "$USERNAME" "$AUR_TOOL" -S --noconfirm ananicy-cpp ananicy-rules-git
+sudo -u "$USERNAME" "$AUR_TOOL" -S --noconfirm ananicy-cpp || true
+
+if command -v ananicy-cpp &>/dev/null; then
+    echo "[*] Deploying optimized community process rules directly to /etc/ananicy.d/..."
+    mkdir -p /etc/ananicy.d
+    if git clone --depth=1 https://github.com/CachyOS/ananicy-rules.git /tmp/cachyos-rules 2>/dev/null; then
+        cp -rn /tmp/cachyos-rules/* /etc/ananicy.d/ 2>/dev/null || true
+        rm -rf /tmp/cachyos-rules
+    fi
+    systemctl enable ananicy-cpp.service
+fi
 
 # Restore strict sudoers
 rm -f /etc/sudoers.d/wheel_temp
@@ -343,6 +351,9 @@ sed -i 's/^TIMELINE_LIMIT_DAILY="10"/TIMELINE_LIMIT_DAILY="7"/' /etc/snapper/con
 sed -i 's/^TIMELINE_LIMIT_WEEKLY="0"/TIMELINE_LIMIT_WEEKLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_YEARLY="0"/TIMELINE_LIMIT_YEARLY="0"/' /etc/snapper/configs/root
+
+# [V4 PATCH] Create baseline snapshot so grub-btrfs immediately generates functional entries
+snapper --no-dbus -c root create -d "ARCH_EXTREME_V4_BASE" || true
 
 systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
@@ -387,6 +398,14 @@ __GLX_VENDOR_LIBRARY_NAME=nvidia
 GBM_BACKEND=nvidia-drm
 QT_QPA_PLATFORM=wayland;xcb
 ENV
+
+# [V4 PATCH] SDDM Wayland Greeter Configuration for flawless Nvidia login
+mkdir -p /etc/sddm.conf.d
+cat <<SDDM > /etc/sddm.conf.d/wayland.conf
+[General]
+DisplayServer=wayland
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+SDDM
 
 # MPV Configuration
 mkdir -p /etc/mpv
@@ -475,7 +494,6 @@ systemctl enable power-profiles-daemon.service
 systemctl enable thermald.service
 systemctl enable irqbalance.service
 systemctl enable paccache.timer
-systemctl enable ananicy-cpp.service
 systemctl enable ufw.service
 systemctl enable nvidia-suspend.service
 systemctl enable nvidia-hibernate.service
