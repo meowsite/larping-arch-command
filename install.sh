@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V8] - Ultimate Power-User Arch Linux Installer
-# 8-Stage Startup Configurator | Max Overdrive Tuning | Multi-Kernel Selection
-# Curated 10-App Suite | Zen/Btrfs/Snapper/NVDEC/QuickSync/Hungarian Stack
+# ARCH EXTREME [V9] - Ultimate Power-User Arch Linux Installer
+# 8-Stage Startup Configurator | Laptop Ultra-Battery Mode | Max Overdrive
+# Multi-Kernel Selection | Curated 10-App Suite | Zen/Btrfs/Snapper/Hungarian
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V8"
+SCRIPT_VERSION="V9"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -31,12 +31,12 @@ swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
- █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██████╗ 
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██╔══██╗
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║╚█████╔╝
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝██╔══██╗
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ╚██████╔╝
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝   ╚═════╝ 
+ â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•—  â–ˆâ–ˆâ•—    â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•—  â–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ•—   â–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—    â–ˆâ–ˆâ•—   â–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•— 
+â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â•â•â•â•â•â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘    â–ˆâ–ˆâ•”â•â•â•â•â•â•šâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â•â•šâ•â•â–ˆâ–ˆâ•”â•â•â•â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â•â•â•â•â•â–ˆâ–ˆâ–ˆâ–ˆâ•— â–ˆâ–ˆâ–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•â•â•    â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•â•â• 
+â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•‘    â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—   â•šâ–ˆâ–ˆâ–ˆâ•”â•    â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  â–ˆâ–ˆâ•”â–ˆâ–ˆâ–ˆâ–ˆâ•”â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—      â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—  
+â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘     â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•‘    â–ˆâ–ˆâ•”â•â•â•   â–ˆâ–ˆâ•”â–ˆâ–ˆâ•—    â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•”â•â•â–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â•â•â•  â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ•”â•â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•”â•â•â•      â•šâ–ˆâ–ˆâ•— â–ˆâ–ˆâ•”â• â•šâ•â•â•â–ˆâ–ˆâ•— 
+â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â•šâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘    â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•”â• â–ˆâ–ˆâ•—   â–ˆâ–ˆâ•‘   â–ˆâ–ˆâ•‘  â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—â–ˆâ–ˆâ•‘ â•šâ•â• â–ˆâ–ˆâ•‘â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•—     â•šâ–ˆâ–ˆâ–ˆâ–ˆâ•”â• â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ•”â• 
+â•šâ•â•  â•šâ•â•â•šâ•â•  â•šâ•â• â•šâ•â•â•â•â•â•â•šâ•â•  â•šâ•â•    â•šâ•â•â•â•â•â•â•â•šâ•â•  â•šâ•â•   â•šâ•â•   â•šâ•â•  â•šâ•â•â•šâ•â•â•â•â•â•â•â•šâ•â•     â•šâ•â•â•šâ•â•â•â•â•â•â•      â•šâ•â•â•â•  â•šâ•â•â•â•â•â•  
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
 echo "                  Interactive 8-Stage System Configurator       "
@@ -66,9 +66,9 @@ fi
 # --- CHOICE 2: Linux Kernel Selection ---
 echo ""
 echo "--- [CHOICE 2/8] Linux Kernel Architecture ---"
-echo "  1) linux-zen      (Low latency, desktop responsiveness, tuned CPU scheduler) [Recommended]"
-echo "  2) linux          (Standard vanilla upstream Arch kernel)"
-echo "  3) linux-lts      (Long-Term Support, maximum driver regression stability)"
+echo "  1) linux-zen      (Low latency, responsive desktop scheduler) [Recommended]"
+echo "  2) linux          (Standard upstream Arch kernel)"
+echo "  3) linux-lts      (Long-Term Support, maximum driver stability)"
 read -rp "Select Kernel [1-3, default: 1]: " KERNEL_CHOICE
 case "${KERNEL_CHOICE:-1}" in
     2) KERNEL_PKG="linux"; KERNEL_HEADERS="linux-headers" ;;
@@ -76,12 +76,14 @@ case "${KERNEL_CHOICE:-1}" in
     *) KERNEL_PKG="linux-zen"; KERNEL_HEADERS="linux-zen-headers" ;;
 esac
 
-# --- CHOICE 3: Optimization Tier ---
+# --- CHOICE 3: Optimization & Power Profile ---
 echo ""
-echo "--- [CHOICE 3/8] Performance & Optimization Profile ---"
-echo "  1) MAX OVERDRIVE  (CPU native CFLAGS, -O3 makepkg, mitigations=off, 64-quantum audio, ultra ZRAM)"
-echo "  2) BALANCED       (Standard Zen latency, safe security mitigations, standard ZRAM)"
-read -rp "Select Profile [1 or 2, default: 1]: " OPT_CHOICE
+echo "--- [CHOICE 3/8] Performance & Battery Profile ---"
+echo "  1) MAX OVERDRIVE        (Desktop/AC: Uncapped CPU, mitigations=off, ultra-low audio latency)"
+echo "  2) BALANCED             (Standard responsive desktop tuning with safe security)"
+echo "  3) LAPTOP ULTRA ECO     (Max Battery: No Turbo spikes, Intel EPP power-save, Powertop autotune,"
+echo "                           PCIe ASPM, audio/wifi sleep, and Nvidia 0W idle RTD3 power-gating)"
+read -rp "Select Profile [1-3, default: 1]: " OPT_CHOICE
 OPT_TIER="${OPT_CHOICE:-1}"
 
 # --- CHOICE 4: GPU Driver Stack ---
@@ -89,7 +91,7 @@ echo ""
 echo "--- [CHOICE 4/8] Graphics Driver Architecture ---"
 echo "  1) nvidia-open-dkms (Turing / RTX 2000, GTX 1600 & newer architectures) [Recommended]"
 echo "  2) nvidia-dkms      (Pascal / GTX 1000, GTX 900 & legacy cards)"
-echo "  3) Intel iGPU Only  (Mesa Vulkan, no Nvidia modules loaded)"
+echo "  3) Intel iGPU Only  (Pure Intel QuickSync, no Nvidia modules loaded)"
 read -rp "Select GPU Driver [1-3, default: 1]: " NVIDIA_CHOICE
 case "${NVIDIA_CHOICE:-1}" in
     2) GPU_PROFILE="nvidia-legacy" ;;
@@ -109,14 +111,14 @@ LOCALE_PROFILE="${LOCALE_CHOICE:-1}"
 echo ""
 echo "--- [CHOICE 6/8] SDDM Login Greeter Theme ---"
 echo "  1) Astronaut Theme (Modern frosted glass, animated card, custom typography) [Recommended]"
-echo "  2) Breeze Theme    (Stock KDE minimal display manager)"
+echo "  2) Breeze Theme    (Stock KDE display manager)"
 read -rp "Select Theme [1 or 2, default: 1]: " SDDM_THEME_CHOICE
 SDDM_THEME="${SDDM_THEME_CHOICE:-1}"
 
 # --- CHOICE 7: SDDM Auto-Login ---
 echo ""
 echo "--- [CHOICE 7/8] SDDM Session Auto-Login ---"
-echo "  1) Require Password (Standard secure display manager lock)"
+echo "  1) Require Password (Standard display manager lock)"
 echo "  2) Enable Auto-Login (Bypass login screen, instant desktop boot)"
 read -rp "Select Option [1 or 2, default: 1]: " AUTOLOGIN_CHOICE
 SDDM_AUTOLOGIN="${AUTOLOGIN_CHOICE:-1}"
@@ -150,7 +152,6 @@ if [[ "$SELECTED_APPS" != "none" ]]; then
         case "$item" in
             1) APP_PKGS+=(firefox) ;;
             2) APP_PKGS+=(steam) ;;
-            # [V8 PATCH] Removed dropped 'lib32-giflib'; wine-staging handles its own multilib deps
             3) APP_PKGS+=(lutris wine-staging winetricks giflib) ;;
             4) APP_PKGS+=(discord) ;;
             5) APP_PKGS+=(code) ;;
@@ -254,7 +255,7 @@ BASE_PKGS=(
     btrfs-progs dosfstools e2fsprogs git nano bash-completion curl wget
     networkmanager grub efibootmgr grub-btrfs inotify-tools snapper snap-pac
     zram-generator pacman-contrib ufw thermald irqbalance power-profiles-daemon
-    gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs
+    gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs powertop
 )
 
 GRAPHICS_PKGS=(mesa vulkan-intel intel-media-driver libva-intel-driver libva-utils)
@@ -472,7 +473,7 @@ sed -i 's/^TIMELINE_LIMIT_WEEKLY="0"/TIMELINE_LIMIT_WEEKLY="0"/' /etc/snapper/co
 sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_YEARLY="0"/TIMELINE_LIMIT_YEARLY="0"/' /etc/snapper/configs/root
 
-snapper --no-dbus -c root create -d "ARCH_EXTREME_V8_BASE" || true
+snapper --no-dbus -c root create -d "ARCH_EXTREME_V9_BASE" || true
 
 systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
@@ -574,6 +575,59 @@ demuxer-max-bytes=200MiB
 ytdl-format=bestvideo[height<=?1080]+bestaudio/best
 MPV
 
+# ==============================================================================
+# [V9 PATCH] LAPTOP ULTRA-BATTERY & POWER PROFILES CONFIGURATION
+# ==============================================================================
+if [[ "$OPT_TIER" == "3" ]]; then
+    echo "[*] Configuring Laptop Ultra-Battery optimization suite..."
+
+    # 1. Disable CPU Turbo Boost spikes on battery via dynamic udev power rule
+    cat << 'UDEV_POWER' > /etc/udev/rules.d/99-battery-powersave.rules
+# Battery detected: Disable aggressive CPU turbo boost & switch to power saving EPP
+SUBSYSTEM=="power_supply", ATTR{online}=="0", RUN+="/usr/bin/bash -c 'echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null; for i in /sys/devices/system/cpu/cpu*/power/energy_performance_preference; do echo power > \"$i\" 2>/dev/null; done'"
+
+# AC adapter plugged in: Restore turbo boost and switch to balance_performance
+SUBSYSTEM=="power_supply", ATTR{online}=="1", RUN+="/usr/bin/bash -c 'echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null; for i in /sys/devices/system/cpu/cpu*/power/energy_performance_preference; do echo balance_performance > \"$i\" 2>/dev/null; done'"
+UDEV_POWER
+
+    # 2. Nvidia RTD3 Runtime PM: Fully cut power to discrete Nvidia GPU when idle (0 Watts draw)
+    if [[ "$GPU_PROFILE" != "intel-only" ]]; then
+        cat <<UDEV_NV > /etc/udev/rules.d/80-nvidia-pm.rules
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", ATTR{power/control}="auto"
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", ATTR{power/control}="auto"
+UDEV_NV
+    fi
+
+    # 3. Audio Codec Power-Down after 1 second of silence
+    mkdir -p /etc/modprobe.d
+    cat <<AUDIO_PM > /etc/modprobe.d/audio_powersave.conf
+options snd_hda_intel power_save=1 power_save_controller=Y
+AUDIO_PM
+
+    # 4. NetworkManager: Enable 802.11 Power Saving
+    mkdir -p /etc/NetworkManager/conf.d
+    cat <<WIFI_PM > /etc/NetworkManager/conf.d/default-wifi-powersave-on.conf
+[connection]
+wifi.powersave = 3
+WIFI_PM
+
+    # 5. Powertop Auto-Tune Systemd Service (PCIe ASPM, SATA Link Power, USB Autosuspend)
+    cat <<POWERTOP_SVC > /etc/systemd/system/powertop.service
+[Unit]
+Description=Powertop tunings on boot
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/powertop --auto-tune
+
+[Install]
+WantedBy=multi-user.target
+POWERTOP_SVC
+    systemctl enable powertop.service
+fi
+
 # Bootloader (GRUB)
 sed -i 's/^#GRUB_SAVEDEFAULT="true"/GRUB_SAVEDEFAULT="false"/' /etc/default/grub
 sed -i 's/^#GRUB_PRELOAD_MODULES=".*"/GRUB_PRELOAD_MODULES="btrfs"/' /etc/default/grub
@@ -585,6 +639,9 @@ fi
 
 if [[ "$OPT_TIER" == "1" ]]; then
     BASE_CMDLINE="$BASE_CMDLINE mitigations=off split_lock_mitigate=0 isolcpus= managed_irq"
+elif [[ "$OPT_TIER" == "3" ]]; then
+    # LAPTOP ULTRA ECO: Force PCIe ASPM power saving and NMI watchdog sleep
+    BASE_CMDLINE="$BASE_CMDLINE split_lock_mitigate=0 pcie_aspm=force pcie_aspm.policy=powersave nmi_watchdog=0"
 else
     BASE_CMDLINE="$BASE_CMDLINE split_lock_mitigate=0"
 fi
@@ -597,9 +654,13 @@ grub-mkconfig -o /boot/grub/grub.cfg
 mkdir -p /etc/pipewire/pipewire.conf.d
 if [[ "$OPT_TIER" == "1" ]]; then
     PW_QUANTUM=64
+elif [[ "$OPT_TIER" == "3" ]]; then
+    # 256 quantum buffer: reduces CPU wakeups while keeping audio latency unnoticeable
+    PW_QUANTUM=256
 else
     PW_QUANTUM=128
 fi
+
 cat <<PW > /etc/pipewire/pipewire.conf.d/99-lowlatency.conf
 context.properties = {
     default.clock.rate = 48000
@@ -631,6 +692,11 @@ net.core.netdev_max_backlog = 16384
 net.core.somaxconn = 8192
 fs.file-max = 2097152
 SYSCTL
+
+# Extended dirty writeback for Laptop Ultra Eco (avoids spinning disks / waking CPU cores every 5s)
+if [[ "$OPT_TIER" == "3" ]]; then
+    echo "vm.dirty_writeback_centisecs = 6000" >> /etc/sysctl.d/99-performance.conf
+fi
 
 # Dynamic I/O Schedulers
 cat <<UDEV > /etc/udev/rules.d/60-ioschedulers.rules
