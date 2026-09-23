@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Arch Linux Ultimate Power-User Installer (Updated with Live Multilib Fix)
+# Arch Linux Ultimate Power-User Installer
 # Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru AUR
 # Ananicy-CPP | UFW Firewall | Hungarian Stack | Zero-Bloat KDE Plasma
 # ==============================================================================
@@ -58,27 +58,27 @@ if [[ "$CONFIRM_DESTROY" != "DESTROY" ]]; then
     exit 0
 fi
 
-# 3. Credentials & Settings
+# 3. Credentials & Settings (Preserving Whitespace/Spaces)
 echo ""
 read -rp "System Hostname: " HOSTNAME
 read -rp "Username: " USERNAME
 
 while true; do
-    read -rsp "Password for $USERNAME: " USER_PASS
+    IFS= read -rsp "Password for $USERNAME: " USER_PASS
     echo ""
-    read -rsp "Confirm password for $USERNAME: " USER_PASS_CONFIRM
+    IFS= read -rsp "Confirm password for $USERNAME: " USER_PASS_CONFIRM
     echo ""
     [[ "$USER_PASS" == "$USER_PASS_CONFIRM" && -n "$USER_PASS" ]] && break
-    echo "[-] Passwords do not match. Try again."
+    echo "[-] Passwords do not match or are empty. Try again."
 done
 
 while true; do
-    read -rsp "Root Password: " ROOT_PASS
+    IFS= read -rsp "Root Password: " ROOT_PASS
     echo ""
-    read -rsp "Confirm Root Password: " ROOT_PASS_CONFIRM
+    IFS= read -rsp "Confirm Root Password: " ROOT_PASS_CONFIRM
     echo ""
     [[ "$ROOT_PASS" == "$ROOT_PASS_CONFIRM" && -n "$ROOT_PASS" ]] && break
-    echo "[-] Passwords do not match. Try again."
+    echo "[-] Passwords do not match or are empty. Try again."
 done
 
 echo ""
@@ -121,7 +121,6 @@ sleep 2
 mkfs.fat -F32 -n "EFI" "$BOOT_PART"
 mkfs.btrfs -f -L "ARCH_ROOT" "$ROOT_PART"
 
-# Create canonical Btrfs subvolumes for Snapper rollback compatibility
 mount "$ROOT_PART" /mnt
 btrfs subvolume create /mnt/@
 btrfs subvolume create /mnt/@home
@@ -169,7 +168,6 @@ MULTIMEDIA_CODECS=(
     gst-plugins-ugly gst-libav ffmpegthumbs kdegraphics-thumbnailers
 )
 
-# Stripped-down KDE Plasma: Zero telemetry, zero PIM/Akonadi bloat
 KDE_LEAN=(
     plasma-desktop plasma-nm plasma-pa powerdevil kscreen bluedevil
     breeze breeze-gtk kde-gtk-config polkit-kde-agent
@@ -244,13 +242,11 @@ sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
 sed -i 's/^#MAKEFLAGS="-j2"/MAKEFLAGS="-j\$(nproc)"/' /etc/makepkg.conf
 sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 -)/' /etc/makepkg.conf
 
-# Users & Sudo Setup
-echo "root:$ROOT_PASS" | chpasswd
+# Create user account and configure sudo
 useradd -m -G wheel,video,audio,storage,gamemode -s /bin/bash "$USERNAME"
-echo "$USERNAME:$USER_PASS" | chpasswd
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 
-# Disable Baloo file indexer in KDE to save I/O and CPU
+# Disable Baloo file indexer in KDE
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
 
 # AUR Helper (paru-bin) & Ananicy-CPP
@@ -423,6 +419,11 @@ EOF
 chmod +x /mnt/root/setup_chroot.sh
 arch-chroot /mnt /root/setup_chroot.sh
 rm /mnt/root/setup_chroot.sh
+
+# Apply passwords safely through chroot stdin (prevents heredoc string corruption)
+echo "[*] Setting user and root credentials..."
+printf "root:%s\n" "$ROOT_PASS" | arch-chroot /mnt chpasswd
+printf "%s:%s\n" "$USERNAME" "$USER_PASS" | arch-chroot /mnt chpasswd
 
 # 7. Unmount & Finalize
 echo "[*] Syncing buffers and unmounting subvolumes..."
