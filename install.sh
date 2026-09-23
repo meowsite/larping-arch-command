@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V5] - Ultimate Power-User Arch Linux Installer
-# Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru / Yay
-# Ananicy-CPP + CachyOS Rules | UFW Firewall | Hungarian Stack | Clean KDE Plasma
+# ARCH EXTREME [V7] - Ultimate Power-User Arch Linux Installer
+# 8-Stage Startup Configurator | Max Overdrive Tuning | Multi-Kernel Selection
+# Curated 10-App Suite | Zen/Btrfs/Snapper/NVDEC/QuickSync/Hungarian Stack
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V5"
+SCRIPT_VERSION="V7"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -25,7 +25,6 @@ if ! ping -c 1 archlinux.org &>/dev/null; then
     exit 1
 fi
 
-# Clean up stale mounts and active swap from previous interrupted runs
 echo "[*] Cleaning up potential stale mounts from prior attempts..."
 umount -R /mnt 2>/dev/null || true
 swapoff -a 2>/dev/null || true
@@ -33,26 +32,29 @@ swapoff -a 2>/dev/null || true
 clear
 cat << "BANNER"
  █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗███████╗
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██╔════╝
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║███████╗
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝╚════██║
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ███████║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝  ╚══════╝
+██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║╚════██║
+███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║    ██╔╝
+██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝   ██╔╝ 
+██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝    ██╔╝  
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝     ╚═╝   
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
+echo "                  Interactive 8-Stage System Configurator       "
 echo ""
 
-# 2. Disk Selection
-echo "[*] Storage devices detected:"
+# ==============================================================================
+# 8 STARTUP CHOICES & SYSTEM CONFIGURATION
+# ==============================================================================
+
+# --- CHOICE 1: Storage Disk Selection ---
+echo "--- [CHOICE 1/8] Storage Disk Selection ---"
 lsblk -dpno NAME,SIZE,TYPE,MODEL | grep -E "disk"
 echo ""
 read -rp "Enter target disk path (e.g., /dev/nvme0n1 or /dev/sda): " DISK
-
 if [[ ! -b "$DISK" ]]; then
     echo "[-] Error: Block device '$DISK' not found." >&2
     exit 1
 fi
-
 echo ""
 echo "[!] DANGER: ALL PARTITIONS ON $DISK WILL BE PURGED AND OVERWRITTEN."
 read -rp "Type 'DESTROY' to proceed: " CONFIRM_DESTROY
@@ -61,8 +63,110 @@ if [[ "$CONFIRM_DESTROY" != "DESTROY" ]]; then
     exit 0
 fi
 
-# 3. Credentials & Settings (Preserves spaces verbatim via IFS=)
+# --- CHOICE 2: Linux Kernel Selection ---
 echo ""
+echo "--- [CHOICE 2/8] Linux Kernel Architecture ---"
+echo "  1) linux-zen      (Low latency, desktop responsiveness, tuned CPU scheduler) [Recommended]"
+echo "  2) linux          (Standard vanilla upstream Arch kernel)"
+echo "  3) linux-lts      (Long-Term Support, maximum driver regression stability)"
+read -rp "Select Kernel [1-3, default: 1]: " KERNEL_CHOICE
+case "${KERNEL_CHOICE:-1}" in
+    2) KERNEL_PKG="linux"; KERNEL_HEADERS="linux-headers" ;;
+    3) KERNEL_PKG="linux-lts"; KERNEL_HEADERS="linux-lts-headers" ;;
+    *) KERNEL_PKG="linux-zen"; KERNEL_HEADERS="linux-zen-headers" ;;
+esac
+
+# --- CHOICE 3: Optimization Tier ---
+echo ""
+echo "--- [CHOICE 3/8] Performance & Optimization Profile ---"
+echo "  1) MAX OVERDRIVE  (CPU native CFLAGS, -O3 makepkg, mitigations=off, 64-quantum audio, ultra ZRAM)"
+echo "  2) BALANCED       (Standard Zen latency, safe security mitigations, standard ZRAM)"
+read -rp "Select Profile [1 or 2, default: 1]: " OPT_CHOICE
+OPT_TIER="${OPT_CHOICE:-1}"
+
+# --- CHOICE 4: GPU Driver Stack ---
+echo ""
+echo "--- [CHOICE 4/8] Graphics Driver Architecture ---"
+echo "  1) nvidia-open-dkms (Turing / RTX 2000, GTX 1600 & newer architectures) [Recommended]"
+echo "  2) nvidia-dkms      (Pascal / GTX 1000, GTX 900 & legacy cards)"
+echo "  3) Intel iGPU Only  (Mesa Vulkan, no Nvidia modules loaded)"
+read -rp "Select GPU Driver [1-3, default: 1]: " NVIDIA_CHOICE
+case "${NVIDIA_CHOICE:-1}" in
+    2) GPU_PROFILE="nvidia-legacy" ;;
+    3) GPU_PROFILE="intel-only" ;;
+    *) GPU_PROFILE="nvidia-open" ;;
+esac
+
+# --- CHOICE 5: Language, Locales & Keyboard ---
+echo ""
+echo "--- [CHOICE 5/8] Language & Regional Localization ---"
+echo "  1) English UI + Hungarian Formats/Dates + Hungarian 105-key Keyboard (Recommended)"
+echo "  2) Full Hungarian Environment (Hungarian UI, Formats, Keyboard)"
+read -rp "Select Locale [1 or 2, default: 1]: " LOCALE_CHOICE
+LOCALE_PROFILE="${LOCALE_CHOICE:-1}"
+
+# --- CHOICE 6: SDDM Login Screen Theme ---
+echo ""
+echo "--- [CHOICE 6/8] SDDM Login Greeter Theme ---"
+echo "  1) Astronaut Theme (Modern frosted glass, animated card, custom typography) [Recommended]"
+echo "  2) Breeze Theme    (Stock KDE minimal display manager)"
+read -rp "Select Theme [1 or 2, default: 1]: " SDDM_THEME_CHOICE
+SDDM_THEME="${SDDM_THEME_CHOICE:-1}"
+
+# --- CHOICE 7: SDDM Auto-Login ---
+echo ""
+echo "--- [CHOICE 7/8] SDDM Session Auto-Login ---"
+echo "  1) Require Password (Standard secure display manager lock)"
+echo "  2) Enable Auto-Login (Bypass login screen, instant desktop boot)"
+read -rp "Select Option [1 or 2, default: 1]: " AUTOLOGIN_CHOICE
+SDDM_AUTOLOGIN="${AUTOLOGIN_CHOICE:-1}"
+
+# --- CHOICE 8: Preinstalled Application Suite (Select from Top 10) ---
+echo ""
+echo "--- [CHOICE 8/8] Curated Preinstalled Application Suite ---"
+echo "  [1]  Firefox          (Hardened browser with VA-API hardware decode)"
+echo "  [2]  Steam            (Vulkan & 32-bit gaming libraries ready)"
+echo "  [3]  Lutris + Wine    (Wine-Staging + dependencies for non-Steam games)"
+echo "  [4]  Discord          (Preconfigured for native Wayland execution)"
+echo "  [5]  VS Code (OSS)    (Code - OSS binary with development tools)"
+echo "  [6]  Spotify          (Official native desktop launcher)"
+echo "  [7]  OBS Studio       (Screen recording with NVENC / QuickSync support)"
+echo "  [8]  qBittorrent      (Fast torrent client without adware)"
+echo "  [9]  LibreOffice      (Full office suite - Fresh release)"
+echo "  [10] GIMP             (Image manipulation and photo editing)"
+echo ""
+echo "Enter app numbers separated by spaces (e.g., '1 2 4 5 7'), 'all', or 'none'."
+read -rp "Select Apps [Default: 1 2 4]: " SELECTED_APPS
+SELECTED_APPS="${SELECTED_APPS:-1 2 4}"
+
+# Parse App Selections
+APP_PKGS=()
+APP_AUR_PKGS=()
+
+if [[ "$SELECTED_APPS" == "all" ]]; then
+    SELECTED_APPS="1 2 3 4 5 6 7 8 9 10"
+fi
+
+if [[ "$SELECTED_APPS" != "none" ]]; then
+    for item in $SELECTED_APPS; do
+        case "$item" in
+            1) APP_PKGS+=(firefox) ;;
+            2) APP_PKGS+=(steam) ;;
+            3) APP_PKGS+=(lutris wine-staging winetricks giflib lib32-giflib) ;;
+            4) APP_PKGS+=(discord) ;;
+            5) APP_PKGS+=(code) ;;
+            6) APP_PKGS+=(spotify-launcher) ;;
+            7) APP_PKGS+=(obs-studio) ;;
+            8) APP_PKGS+=(qbittorrent) ;;
+            9) APP_PKGS+=(libreoffice-fresh) ;;
+            10) APP_PKGS+=(gimp) ;;
+        esac
+    done
+fi
+
+# Credentials & Hostname
+echo ""
+echo "--- User & System Credentials ---"
 read -rp "System Hostname: " HOSTNAME
 read -rp "Username: " USERNAME
 
@@ -84,24 +188,9 @@ while true; do
     echo "[-] Passwords do not match or are empty. Try again."
 done
 
-echo ""
-echo "Select Language & Locale Setup:"
-echo "  1) English UI + Hungarian Formats/Dates + Hungarian Keyboard (Recommended)"
-echo "  2) Full Hungarian Environment (Hungarian UI, Formats, Keyboard)"
-read -rp "Select [1 or 2, default: 1]: " LOCALE_CHOICE
-
-echo ""
-echo "Select Nvidia Driver Variant:"
-echo "  1) nvidia-open-dkms (Turing / RTX 2000, GTX 1600 & newer architectures)"
-echo "  2) nvidia-dkms      (Pascal / GTX 1000 & older)"
-read -rp "Select [1 or 2, default: 1]: " NVIDIA_CHOICE
-if [[ "$NVIDIA_CHOICE" == "2" ]]; then
-    NVIDIA_PKG="nvidia-dkms"
-else
-    NVIDIA_PKG="nvidia-open-dkms"
-fi
-
-# 4. Partitioning & Subvolumes (Snapper-Compliant Btrfs Tree)
+# ==============================================================================
+# DISK PARTITIONING & BTRFS SUBVOLUMES
+# ==============================================================================
 echo ""
 echo "[*] Creating GPT tables and partitioning $DISK..."
 wipefs -af "$DISK"
@@ -146,33 +235,36 @@ mount -o "$BTRFS_OPTS,subvol=@var_cache" "$ROOT_PART" /mnt/var/cache
 mount -o "$BTRFS_OPTS,subvol=@var_tmp" "$ROOT_PART" /mnt/var/tmp
 mount "$BOOT_PART" /mnt/boot
 
-# Disable CoW on write-heavy subvolumes to avoid fragmentation
 chattr +C /mnt/var/log 2>/dev/null || true
 chattr +C /mnt/var/cache 2>/dev/null || true
 chattr +C /mnt/var/tmp 2>/dev/null || true
 
-# 5. Live Environment Fixes & Package Installation
-echo "[*] Synchronizing live host keyring and enabling multilib..."
+# ==============================================================================
+# PACMAN MIRRORS & PACKAGE STRAPPING
+# ==============================================================================
+echo "[*] Initializing live pacman keyring & multilib..."
 pacman-key --init 2>/dev/null || true
 pacman-key --populate archlinux 2>/dev/null || true
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 pacman -Sy --noconfirm archlinux-keyring
 
-echo "[*] Installing system packages via pacstrap..."
+echo "[*] Running pacstrap for selected kernel ($KERNEL_PKG) & base system..."
 BASE_PKGS=(
-    base base-devel linux-zen linux-zen-headers linux-firmware intel-ucode
+    base base-devel "$KERNEL_PKG" "$KERNEL_HEADERS" linux-firmware intel-ucode
     btrfs-progs dosfstools e2fsprogs git nano bash-completion curl wget
     networkmanager grub efibootmgr grub-btrfs inotify-tools snapper snap-pac
     zram-generator pacman-contrib ufw thermald irqbalance power-profiles-daemon
     gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs
 )
 
-INTEL_NVIDIA_VIDEO=(
-    mesa vulkan-intel intel-media-driver libva-intel-driver libva-utils
-    "$NVIDIA_PKG" nvidia-utils lib32-nvidia-utils nvidia-settings nvidia-prime
-    libva-nvidia-driver vdpauinfo
-)
+# Graphics Packages Based on Choice 4
+GRAPHICS_PKGS=(mesa vulkan-intel intel-media-driver libva-intel-driver libva-utils)
+if [[ "$GPU_PROFILE" == "nvidia-open" ]]; then
+    GRAPHICS_PKGS+=(nvidia-open-dkms nvidia-utils lib32-nvidia-utils nvidia-settings nvidia-prime libva-nvidia-driver vdpauinfo)
+elif [[ "$GPU_PROFILE" == "nvidia-legacy" ]]; then
+    GRAPHICS_PKGS+=(nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings nvidia-prime libva-nvidia-driver vdpauinfo)
+fi
 
 MULTIMEDIA_CODECS=(
     pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber
@@ -183,6 +275,7 @@ MULTIMEDIA_CODECS=(
 KDE_LEAN=(
     plasma-desktop plasma-workspace plasma-nm plasma-pa powerdevil kscreen bluedevil
     breeze breeze-gtk kde-gtk-config polkit-kde-agent qt6-wayland qt5-wayland
+    qt6-5compat qt6-declarative qt6-svg qt6-multimedia
     sddm sddm-kcm konsole dolphin ark kate spectacle
 )
 
@@ -193,37 +286,43 @@ POWER_TOOLS_AND_FONTS=(
 
 pacstrap -K /mnt \
     "${BASE_PKGS[@]}" \
-    "${INTEL_NVIDIA_VIDEO[@]}" \
+    "${GRAPHICS_PKGS[@]}" \
     "${MULTIMEDIA_CODECS[@]}" \
     "${KDE_LEAN[@]}" \
-    "${POWER_TOOLS_AND_FONTS[@]}"
+    "${POWER_TOOLS_AND_FONTS[@]}" \
+    "${APP_PKGS[@]}"
 
 genfstab -U /mnt >> /mnt/etc/fstab
 
-# Forward DNS resolution into chroot for Git building
 mkdir -p /mnt/etc
 cp -L /etc/resolv.conf /mnt/etc/resolv.conf 2>/dev/null || true
 
-# 6. Target Chroot Configuration Script
+# ==============================================================================
+# CHROOT POST-INSTALL CONFIGURATION
+# ==============================================================================
 cat << 'CHROOT_SCRIPT' > /mnt/root/setup_chroot.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
 HOSTNAME="$1"
 USERNAME="$2"
-LOCALE_CHOICE="$3"
-NVIDIA_PKG="$4"
+LOCALE_PROFILE="$3"
+GPU_PROFILE="$4"
+KERNEL_PKG="$5"
+OPT_TIER="$6"
+SDDM_THEME="$7"
+SDDM_AUTOLOGIN="$8"
 
 # Timezone & Hardware Clock
 ln -sf /usr/share/zoneinfo/Europe/Budapest /etc/localtime
 hwclock --systohc
 
-# Locales Generation
+# Localization
 sed -i 's/^#hu_HU.UTF-8 UTF-8/hu_HU.UTF-8 UTF-8/' /etc/locale.gen
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
 
-if [[ "$LOCALE_CHOICE" == "2" ]]; then
+if [[ "$LOCALE_PROFILE" == "2" ]]; then
     cat <<LOC > /etc/locale.conf
 LANG=hu_HU.UTF-8
 LC_COLLATE=C
@@ -239,18 +338,13 @@ LC_MEASUREMENT=hu_HU.UTF-8
 LOC
 fi
 
-# ==============================================================================
-# [V5 PATCH] HUNGARIAN KEYBOARD SETUP (CONSOLE, SDDM, X11 & WAYLAND)
-# ==============================================================================
-
-# 1. Virtual Console (TTY)
+# Hungarian Keyboards: TTY, X11, Display Manager
 cat <<VCON > /etc/vconsole.conf
 KEYMAP=hu
 FONT=lat2-16
 FONT_MAP=8859-2
 VCON
 
-# 2. Global X11 / Wayland / Display Manager Keyboard Mapping
 mkdir -p /etc/X11/xorg.conf.d
 cat <<XKB > /etc/X11/xorg.conf.d/00-keyboard.conf
 Section "InputClass"
@@ -263,7 +357,6 @@ Section "InputClass"
 EndSection
 XKB
 
-# 3. System-level keyboard defaults (respected by SDDM Wayland greeter)
 mkdir -p /etc/default
 cat <<KBD > /etc/default/keyboard
 XKBLAYOUT="hu,us"
@@ -272,7 +365,6 @@ XKBVARIANT="qwertz,"
 XKBOPTIONS="grp:alt_shift_toggle"
 KBD
 
-# Hostname & Network
 echo "$HOSTNAME" > /etc/hostname
 cat <<HOSTS > /etc/hosts
 127.0.0.1   localhost
@@ -280,28 +372,30 @@ cat <<HOSTS > /etc/hosts
 127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
 HOSTS
 
-# Enable Multilib in Target
+# Multilib & Pacman Visuals
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
-
-# Synchronize package databases and run ldconfig
 pacman -Sy --noconfirm
 ldconfig
 
-# Makepkg Optimizations: All CPU cores & threaded zstd
+# Makepkg Optimizations
 sed -i 's/^#MAKEFLAGS="-j2"/MAKEFLAGS="-j\$(nproc)"/' /etc/makepkg.conf
 sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 -)/' /etc/makepkg.conf
 
-# User Creation & Sudo Configuration
+if [[ "$OPT_TIER" == "1" ]]; then
+    # Max Overdrive: Native CPU optimization flags for compilation
+    sed -i 's/-march=x86-64 -mtune=generic/-march=native -O3 -pipe -fno-plt -fexceptions/' /etc/makepkg.conf
+fi
+
+# User & Sudo Setup
 useradd -m -G wheel,video,audio,storage,gamemode -s /bin/bash "$USERNAME"
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 
-# Initialize XDG directories & disable Baloo file indexer
 sudo -u "$USERNAME" xdg-user-dirs-update || true
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
 
-# 4. Configure KDE Plasma User Keyboard (Hungarian primary + US secondary with Alt+Shift toggle)
+# User KDE Keyboard (Hungarian default + US secondary with Alt+Shift)
 sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Use" "true"
 sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "LayoutList" "hu,us"
 sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "LayoutLooping" "true"
@@ -309,10 +403,9 @@ sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Model" "
 sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Options" "grp:alt_shift_toggle"
 sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "DisplayNames" "HU,US"
 
-# AUR Helper Setup: Paru with automatic Yay fallback
+# AUR Helper Setup
 echo "[*] Building and configuring AUR helper..."
 AUR_TOOL=""
-
 if sudo -u "$USERNAME" bash -c '
     cd /tmp
     rm -rf paru-bin
@@ -330,14 +423,12 @@ if sudo -u "$USERNAME" bash -c '
             ln -sf "$ACTIVE_ALPM" /usr/lib/libalpm.so.14
             ldconfig
         fi
-        if sudo -u "$USERNAME" paru --version &>/dev/null; then
-            AUR_TOOL="paru"
-        fi
+        [[ $(sudo -u "$USERNAME" paru --version 2>/dev/null) ]] && AUR_TOOL="paru"
     fi
 fi
 
 if [[ -z "$AUR_TOOL" ]]; then
-    echo "[-] Deploying yay-bin (independent runtime)..."
+    echo "[-] Deploying yay-bin (standalone fallback)..."
     pacman -Rns --noconfirm paru-bin 2>/dev/null || true
     sudo -u "$USERNAME" bash -c '
         cd /tmp
@@ -350,12 +441,11 @@ if [[ -z "$AUR_TOOL" ]]; then
     AUR_TOOL="yay"
 fi
 
-# Ananicy-CPP + CachyOS Rules
+# Ananicy-CPP + CachyOS Community Rules
 echo "[*] Installing Ananicy-CPP via $AUR_TOOL..."
 sudo -u "$USERNAME" "$AUR_TOOL" -S --noconfirm ananicy-cpp || true
 
 if command -v ananicy-cpp &>/dev/null; then
-    echo "[*] Deploying optimized process rules directly to /etc/ananicy.d/..."
     mkdir -p /etc/ananicy.d
     if git clone --depth=1 https://github.com/CachyOS/ananicy-rules.git /tmp/cachyos-rules 2>/dev/null; then
         cp -rn /tmp/cachyos-rules/* /etc/ananicy.d/ 2>/dev/null || true
@@ -364,12 +454,11 @@ if command -v ananicy-cpp &>/dev/null; then
     systemctl enable ananicy-cpp.service
 fi
 
-# Restore strict sudoers
 rm -f /etc/sudoers.d/wheel_temp
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 
-# Snapper & Grub-Btrfs Setup
-echo "[*] Configuring Snapper & Grub-Btrfs..."
+# Snapper & Grub-Btrfs Integration
+echo "[*] Initializing Snapper & Grub-Btrfs..."
 umount /.snapshots 2>/dev/null || true
 rm -rf /.snapshots
 snapper --no-dbus -c root create-config /
@@ -386,61 +475,97 @@ sed -i 's/^TIMELINE_LIMIT_WEEKLY="0"/TIMELINE_LIMIT_WEEKLY="0"/' /etc/snapper/co
 sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_YEARLY="0"/TIMELINE_LIMIT_YEARLY="0"/' /etc/snapper/configs/root
 
-snapper --no-dbus -c root create -d "ARCH_EXTREME_V5_BASE" || true
+snapper --no-dbus -c root create -d "ARCH_EXTREME_V7_BASE" || true
 
 systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
 systemctl enable grub-btrfsd.service
 
-# Nvidia Configuration
-cat <<MODPROBE > /etc/modprobe.d/nvidia.conf
+# GPU & Early KMS Configuration
+if [[ "$GPU_PROFILE" != "intel-only" ]]; then
+    cat <<MODPROBE > /etc/modprobe.d/nvidia.conf
 options nvidia NVreg_PreserveVideoMemoryAllocations=1
 options nvidia NVreg_TemporaryFilePath=/var/tmp
 options nvidia NVreg_DynamicPowerManagement=0x02
 options nvidia-drm modeset=1 fbdev=1
 MODPROBE
 
-mkdir -p /etc/pacman.d/hooks
-cat <<HOOK > /etc/pacman.d/hooks/nvidia.hook
+    mkdir -p /etc/pacman.d/hooks
+    cat <<HOOK > /etc/pacman.d/hooks/nvidia.hook
 [Trigger]
 Operation=Install
 Operation=Upgrade
 Operation=Remove
 Type=Package
 Target=nvidia*
-Target=linux-zen
+Target=$KERNEL_PKG
 
 [Action]
-Description=Auto-rebuilding initramfs after Nvidia or Zen kernel transaction...
+Description=Rebuilding initramfs after Nvidia or Kernel update...
 Depends=mkinitcpio
 When=PostTransaction
 NeedsTargets
 Exec=/usr/bin/mkinitcpio -P
 HOOK
 
-sed -i 's/^MODULES=()/MODULES=(btrfs i915 xe nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
-mkinitcpio -P
+    sed -i 's/^MODULES=()/MODULES=(btrfs i915 xe nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+    systemctl enable nvidia-suspend.service
+    systemctl enable nvidia-hibernate.service
+    systemctl enable nvidia-resume.service
+    systemctl enable nvidia-persistenced.service
 
-# Environment variables for Wayland & hardware decode
-cat <<ENV >> /etc/environment
+    cat <<ENV >> /etc/environment
 LIBVA_DRIVER_NAME=nvidia
 NVD_BACKEND=direct
 MOZ_DISABLE_RDD_SANDBOX=1
-ELECTRON_OZONE_PLATFORM_HINT=auto
 __GLX_VENDOR_LIBRARY_NAME=nvidia
 GBM_BACKEND=nvidia-drm
+ENV
+else
+    sed -i 's/^MODULES=()/MODULES=(btrfs i915 xe)/' /etc/mkinitcpio.conf
+fi
+
+mkinitcpio -P
+
+cat <<ENV >> /etc/environment
+ELECTRON_OZONE_PLATFORM_HINT=auto
 QT_QPA_PLATFORM=wayland;xcb
 ENV
 
-# SDDM Wayland Greeter Configuration
+# SDDM Theme & Auto-Login Configuration
 mkdir -p /etc/sddm.conf.d
+if [[ "$SDDM_THEME" == "1" ]]; then
+    echo "[*] Installing Astronaut SDDM Theme..."
+    mkdir -p /usr/share/sddm/themes
+    if git clone --depth=1 https://github.com/Keyitdev/sddm-astronaut-theme.git /usr/share/sddm/themes/astronaut 2>/dev/null; then
+        mkdir -p /usr/share/fonts/TTF
+        cp -rn /usr/share/sddm/themes/astronaut/Fonts/* /usr/share/fonts/TTF/ 2>/dev/null || true
+        fc-cache -f 2>/dev/null || true
+        cat <<THEME_CONF > /etc/sddm.conf.d/theme.conf
+[Theme]
+Current=astronaut
+CursorTheme=breeze_cursors
+Font="JetBrainsMono Nerd Font"
+THEME_CONF
+    fi
+fi
+
 cat <<SDDM > /etc/sddm.conf.d/wayland.conf
 [General]
 DisplayServer=wayland
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+InputMethod=
 SDDM
 
-# MPV Configuration
+if [[ "$SDDM_AUTOLOGIN" == "2" ]]; then
+    cat <<AUTOLOGIN > /etc/sddm.conf.d/autologin.conf
+[Autologin]
+User=$USERNAME
+Session=plasma
+AUTOLOGIN
+fi
+
+# MPV Player Hardware Acceleration
 mkdir -p /etc/mpv
 cat <<MPV > /etc/mpv/mpv.conf
 hwdec=auto-safe
@@ -452,28 +577,44 @@ demuxer-max-bytes=200MiB
 ytdl-format=bestvideo[height<=?1080]+bestaudio/best
 MPV
 
-# GRUB Bootloader Configuration
+# Bootloader (GRUB)
 sed -i 's/^#GRUB_SAVEDEFAULT="true"/GRUB_SAVEDEFAULT="false"/' /etc/default/grub
 sed -i 's/^#GRUB_PRELOAD_MODULES=".*"/GRUB_PRELOAD_MODULES="btrfs"/' /etc/default/grub
 
-GRUB_CMD="loglevel=3 quiet nvidia-drm.modeset=1 nvidia_drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1 nowatchdog split_lock_mitigate=0 transparent_hugepage=madvise cpufreq.default_governor=schedutil"
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$GRUB_CMD\"|" /etc/default/grub
+BASE_CMDLINE="loglevel=3 quiet nowatchdog transparent_hugepage=madvise cpufreq.default_governor=schedutil"
+if [[ "$GPU_PROFILE" != "intel-only" ]]; then
+    BASE_CMDLINE="$BASE_CMDLINE nvidia-drm.modeset=1 nvidia_drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1"
+fi
 
+if [[ "$OPT_TIER" == "1" ]]; then
+    # MAX OVERDRIVE: Disables CPU execution mitigations and split-lock penalties for highest gaming/raw throughput
+    BASE_CMDLINE="$BASE_CMDLINE mitigations=off split_lock_mitigate=0 isolcpus= managed_irq"
+else
+    BASE_CMDLINE="$BASE_CMDLINE split_lock_mitigate=0"
+fi
+
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$BASE_CMDLINE\"|" /etc/default/grub
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ArchLinux --removable
 grub-mkconfig -o /boot/grub/grub.cfg
 
 # PipeWire Low Latency
 mkdir -p /etc/pipewire/pipewire.conf.d
+if [[ "$OPT_TIER" == "1" ]]; then
+    # 64 quantum buffer (~1.3ms ultra-low audio latency)
+    PW_QUANTUM=64
+else
+    PW_QUANTUM=128
+fi
 cat <<PW > /etc/pipewire/pipewire.conf.d/99-lowlatency.conf
 context.properties = {
     default.clock.rate = 48000
-    default.clock.quantum = 128
-    default.clock.min-quantum = 64
+    default.clock.quantum = $PW_QUANTUM
+    default.clock.min-quantum = 32
     default.clock.max-quantum = 1024
 }
 PW
 
-# ZRAM (100% capacity, ZSTD compression)
+# ZRAM Swap Configuration
 cat <<ZRAM > /etc/systemd/zram-generator.conf
 [zram0]
 zram-size = ram
@@ -528,17 +669,13 @@ systemctl enable thermald.service
 systemctl enable irqbalance.service
 systemctl enable paccache.timer
 systemctl enable ufw.service
-systemctl enable nvidia-suspend.service
-systemctl enable nvidia-hibernate.service
-systemctl enable nvidia-resume.service
-systemctl enable nvidia-persistenced.service
-
-# Mask NetworkManager wait-online timeout
 systemctl mask NetworkManager-wait-online.service
 CHROOT_SCRIPT
 
 chmod +x /mnt/root/setup_chroot.sh
-arch-chroot /mnt /root/setup_chroot.sh "$HOSTNAME" "$USERNAME" "$LOCALE_CHOICE" "$NVIDIA_PKG"
+arch-chroot /mnt /root/setup_chroot.sh \
+    "$HOSTNAME" "$USERNAME" "$LOCALE_PROFILE" "$GPU_PROFILE" \
+    "$KERNEL_PKG" "$OPT_TIER" "$SDDM_THEME" "$SDDM_AUTOLOGIN"
 rm /mnt/root/setup_chroot.sh
 
 # Apply passwords safely through chroot stdin
