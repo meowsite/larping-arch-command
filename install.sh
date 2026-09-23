@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V1] - Ultimate Power-User Arch Linux Installer
-# Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru AUR
+# ARCH EXTREME [V2] - Ultimate Power-User Arch Linux Installer
+# Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru / Yay
 # Ananicy-CPP | UFW Firewall | Hungarian Stack | Zero-Bloat KDE Plasma
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V1"
+SCRIPT_VERSION="V2"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -32,12 +32,12 @@ swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
- █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗ ██╗
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║███║
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║╚██║
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝ ██║
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝  ██║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝   ╚═╝
+ █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██████╗ 
+██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║╚════██╗
+███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║ █████╔╝
+██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝██╔═══╝ 
+██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ███████╗
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝  ╚══════╝
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
 echo ""
@@ -146,24 +146,30 @@ mount -o "$BTRFS_OPTS,subvol=@var_cache" "$ROOT_PART" /mnt/var/cache
 mount -o "$BTRFS_OPTS,subvol=@var_tmp" "$ROOT_PART" /mnt/var/tmp
 mount "$BOOT_PART" /mnt/boot
 
-# [PATCH] Disable CoW on log and tmp subvolumes to prevent fragmentation
+# Disable CoW on log and tmp subvolumes to prevent fragmentation
 chattr +C /mnt/var/log 2>/dev/null || true
 chattr +C /mnt/var/tmp 2>/dev/null || true
 
-# 5. Live Environment Fixes & Package Installation
-echo "[*] Patching Arch Live keyring & enabling multilib..."
-# [PATCH] Refresh keyring first to avoid "corrupted/unknown trust" GPG errors
+# 5. Mirror Sync & Package Installation
+echo "[*] Synchronizing live host keyring and mirrorlist..."
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 pacman -Sy --noconfirm archlinux-keyring
 
-echo "[*] Installing packages to new root via pacstrap..."
+# [V2 PATCH] Use reflector to fetch current active mirrors to avoid soname mismatch
+if command -v reflector &>/dev/null; then
+    echo "[*] Updating mirrorlist with top 10 fastest HTTPS mirrors..."
+    reflector --latest 10 --protocol https --sort rate --save /etc/pacman.d/mirrorlist || true
+fi
+pacman -Sy --noconfirm
+
+echo "[*] Running pacstrap to install system packages..."
 BASE_PKGS=(
     base base-devel linux-zen linux-zen-headers linux-firmware intel-ucode
     btrfs-progs dosfstools e2fsprogs git nano bash-completion curl wget
     networkmanager grub efibootmgr grub-btrfs inotify-tools snapper snap-pac
     zram-generator pacman-contrib ufw thermald irqbalance power-profiles-daemon
-    gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs
+    gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs systemd-timesyncd
 )
 
 INTEL_NVIDIA_VIDEO=(
@@ -178,10 +184,10 @@ MULTIMEDIA_CODECS=(
     gst-plugins-ugly gst-libav ffmpegthumbs kdegraphics-thumbnailers
 )
 
-# Lean KDE: zero bloat (No Akonadi/PIM, Discover, or telemetry)
+# [V2 PATCH] Added qt6-wayland & qt5-wayland for native Wayland application compatibility
 KDE_LEAN=(
-    plasma-desktop plasma-nm plasma-pa powerdevil kscreen bluedevil
-    breeze breeze-gtk kde-gtk-config polkit-kde-agent
+    plasma-desktop plasma-workspace plasma-nm plasma-pa powerdevil kscreen bluedevil
+    breeze breeze-gtk kde-gtk-config polkit-kde-agent qt6-wayland qt5-wayland
     sddm sddm-kcm konsole dolphin ark kate spectacle
 )
 
@@ -197,19 +203,18 @@ pacstrap -K /mnt \
     "${KDE_LEAN[@]}" \
     "${POWER_TOOLS_AND_FONTS[@]}"
 
-# Generate fstab using persistent UUIDs
 genfstab -U /mnt >> /mnt/etc/fstab
 
-# [PATCH] Pass live DNS resolution to target root to ensure Paru build connectivity
+# Forward DNS resolution into chroot for Git building
 mkdir -p /mnt/etc
 cp -L /etc/resolv.conf /mnt/etc/resolv.conf 2>/dev/null || true
 
-# 6. Target Chroot Execution Script
+# 6. Target Chroot Configuration
 cat <<EOF > /mnt/root/setup_chroot.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Timezone & Clock
+# Timezone & Hardware Clock
 ln -sf /usr/share/zoneinfo/Europe/Budapest /etc/localtime
 hwclock --systohc
 
@@ -249,10 +254,14 @@ cat <<HOSTS > /etc/hosts
 127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
 HOSTS
 
-# Enable Multilib in target system
+# Enable Multilib in Target
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
+
+# [V2 PATCH] Synchronize target system to ensure libalpm is updated
+pacman -Syu --noconfirm
+ldconfig
 
 # Makepkg Optimizations: All CPU cores & threaded zstd
 sed -i 's/^#MAKEFLAGS="-j2"/MAKEFLAGS="-j\$(nproc)"/' /etc/makepkg.conf
@@ -262,28 +271,66 @@ sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 
 useradd -m -G wheel,video,audio,storage,gamemode -s /bin/bash "$USERNAME"
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 
-# Initialize standard user directories & disable Baloo file indexer
+# Initialize user directories & disable Baloo file indexer
 sudo -u "$USERNAME" xdg-user-dirs-update || true
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
 
-# AUR Helper (paru-bin) & Ananicy-CPP
-echo "[*] Building and installing Paru AUR Helper..."
-sudo -u "$USERNAME" bash -c '
+# ==============================================================================
+# [V2 PATCH] BULLETPROOF AUR HELPER SETUP (PARU WITH LIBALPM FIX + YAY FALLBACK)
+# ==============================================================================
+echo "[*] Building and configuring AUR helper..."
+INSTALL_SUCCESS=false
+
+# Attempt paru-bin installation
+if sudo -u "$USERNAME" bash -c '
     cd /tmp
+    rm -rf paru-bin
     git clone https://aur.archlinux.org/paru-bin.git
     cd paru-bin
     makepkg -si --noconfirm
     rm -rf /tmp/paru-bin
-'
+'; then
+    # Test if paru works or if it triggers libalpm soname mismatch
+    if ! sudo -u "$USERNAME" paru --version &>/dev/null; then
+        echo "[!] libalpm version discrepancy detected. Applying dynamic soname fix..."
+        ACTIVE_ALPM=\$(ls -1 /usr/lib/libalpm.so.* 2>/dev/null | grep -E 'libalpm\.so\.[0-9]+$' | head -n 1)
+        if [[ -n "\$ACTIVE_ALPM" ]]; then
+            ln -sf "\$ACTIVE_ALPM" /usr/lib/libalpm.so.15
+            ln -sf "\$ACTIVE_ALPM" /usr/lib/libalpm.so.14
+            ln -sf "\$ACTIVE_ALPM" /usr/lib/libalpm.so.16
+            ldconfig
+        fi
+    fi
 
-echo "[*] Installing Ananicy-CPP via Paru..."
-sudo -u "$USERNAME" paru -S --noconfirm ananicy-cpp ananicy-rules-git
+    # Verify if paru is now functioning
+    if sudo -u "$USERNAME" paru --version &>/dev/null; then
+        echo "[+] Paru is operating cleanly."
+        AUR_TOOL="paru"
+        INSTALL_SUCCESS=true
+    fi
+fi
 
-# Restore strict sudo password verification
+# Fallback to yay-bin if paru-bin fails
+if [[ "\$INSTALL_SUCCESS" != "true" ]]; then
+    echo "[-] Paru soname linkage unresolved. Deploying yay-bin (independent Go runtime)..."
+    sudo -u "$USERNAME" bash -c '
+        cd /tmp
+        rm -rf yay-bin
+        git clone https://aur.archlinux.org/yay-bin.git
+        cd yay-bin
+        makepkg -si --noconfirm
+        rm -rf /tmp/yay-bin
+    '
+    AUR_TOOL="yay"
+fi
+
+echo "[*] Installing Ananicy-CPP using \$AUR_TOOL..."
+sudo -u "$USERNAME" "\$AUR_TOOL" -S --noconfirm ananicy-cpp ananicy-rules-git
+
 rm -f /etc/sudoers.d/wheel_temp
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 
-# [PATCH] Snapper Configuration on existing Btrfs @snapshots mount
+# Snapper & Grub-Btrfs Setup
 echo "[*] Initializing Snapper configuration..."
 umount /.snapshots 2>/dev/null || true
 rm -rf /.snapshots
@@ -294,7 +341,6 @@ mount /.snapshots
 chmod 750 /.snapshots
 chown :wheel /.snapshots
 
-# Retention limits
 sed -i 's/^TIMELINE_MIN_AGE="1800"/TIMELINE_MIN_AGE="1800"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_HOURLY="10"/TIMELINE_LIMIT_HOURLY="5"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_DAILY="10"/TIMELINE_LIMIT_DAILY="7"/' /etc/snapper/configs/root
@@ -306,7 +352,7 @@ systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
 systemctl enable grub-btrfsd.service
 
-# Nvidia Power & Kernel Modules
+# Nvidia Power & Early KMS
 cat <<MODPROBE > /etc/modprobe.d/nvidia.conf
 options nvidia NVreg_PreserveVideoMemoryAllocations=1
 options nvidia NVreg_TemporaryFilePath=/var/tmp
@@ -332,7 +378,6 @@ NeedsTargets
 Exec=/usr/bin/mkinitcpio -P
 HOOK
 
-# [PATCH] Early KMS with both i915 and new Intel Xe support + Nvidia
 sed -i 's/^MODULES=()/MODULES=(btrfs i915 xe nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
@@ -347,7 +392,7 @@ GBM_BACKEND=nvidia-drm
 QT_QPA_PLATFORM=wayland;xcb
 ENV
 
-# MPV Configuration: direct Vulkan + auto-safe hardware decode
+# MPV Configuration
 mkdir -p /etc/mpv
 cat <<MPV > /etc/mpv/mpv.conf
 hwdec=auto-safe
@@ -359,14 +404,14 @@ demuxer-max-bytes=200MiB
 ytdl-format=bestvideo[height<=?1080]+bestaudio/best
 MPV
 
-# [PATCH] GRUB Configuration with Btrfs preload and no-hang flags
+# [V2 PATCH] GRUB Installation with --removable fallback (prevents UEFI NVRAM boot dropouts)
 sed -i 's/^#GRUB_SAVEDEFAULT="true"/GRUB_SAVEDEFAULT="false"/' /etc/default/grub
 sed -i 's/^#GRUB_PRELOAD_MODULES=".*"/GRUB_PRELOAD_MODULES="btrfs"/' /etc/default/grub
 
 GRUB_CMD="loglevel=3 quiet nvidia-drm.modeset=1 nvidia_drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1 nowatchdog split_lock_mitigate=0 transparent_hugepage=madvise cpufreq.default_governor=schedutil"
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"\$GRUB_CMD\"|" /etc/default/grub
 
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ArchLinux
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ArchLinux --removable
 grub-mkconfig -o /boot/grub/grub.cfg
 
 # PipeWire Low Latency
@@ -380,7 +425,7 @@ context.properties = {
 }
 PW
 
-# ZRAM
+# ZRAM (ZSTD compression, 100% capacity)
 cat <<ZRAM > /etc/systemd/zram-generator.conf
 [zram0]
 zram-size = ram
@@ -428,6 +473,7 @@ chown "$USERNAME:$USERNAME" "/home/$USERNAME/.bashrc"
 systemctl enable sddm.service
 systemctl enable NetworkManager.service
 systemctl enable bluetooth.service
+systemctl enable systemd-timesyncd.service
 systemctl enable fstrim.timer
 systemctl enable power-profiles-daemon.service
 systemctl enable thermald.service
@@ -440,7 +486,7 @@ systemctl enable nvidia-hibernate.service
 systemctl enable nvidia-resume.service
 systemctl enable nvidia-persistenced.service
 
-# [PATCH] Disable NetworkManager wait-online timeout (prevents 15-30s boot hangs)
+# Mask NetworkManager wait-online timeout
 systemctl mask NetworkManager-wait-online.service
 EOF
 
@@ -448,7 +494,7 @@ chmod +x /mnt/root/setup_chroot.sh
 arch-chroot /mnt /root/setup_chroot.sh
 rm /mnt/root/setup_chroot.sh
 
-# Apply passwords safely through chroot stdin (handles spaces & symbols)
+# Apply passwords safely through chroot stdin
 echo "[*] Applying user and root credentials..."
 printf "root:%s\n" "$ROOT_PASS" | arch-chroot /mnt chpasswd
 printf "%s:%s\n" "$USERNAME" "$USER_PASS" | arch-chroot /mnt chpasswd
