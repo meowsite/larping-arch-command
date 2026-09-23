@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Arch Linux Ultimate Power-User Installer
+# Arch Linux Ultimate Power-User Installer (Updated with Live Multilib Fix)
 # Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru AUR
-# Ananicy-CPP | UFW Firewall | Hungarian Stack | Extreme Latency & Desktop Tuning
+# Ananicy-CPP | UFW Firewall | Hungarian Stack | Zero-Bloat KDE Plasma
 # ==============================================================================
 
 set -euo pipefail
 
-# 1. Pre-flight Checks
+# 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
     echo "[-] Error: Run this script as root from the Arch live ISO." >&2
     exit 1
@@ -22,6 +22,11 @@ if ! ping -c 1 archlinux.org &>/dev/null; then
     echo "[-] Error: No network connectivity. Run 'iwctl' or connect Ethernet." >&2
     exit 1
 fi
+
+# Clean up any stale mounts or active swap from previous failed runs
+echo "[*] Cleaning up potential stale mounts from prior attempts..."
+umount -R /mnt 2>/dev/null || true
+swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
@@ -137,10 +142,13 @@ mount -o "$BTRFS_OPTS,subvol=@var_cache" "$ROOT_PART" /mnt/var/cache
 mount -o "$BTRFS_OPTS,subvol=@var_tmp" "$ROOT_PART" /mnt/var/tmp
 mount "$BOOT_PART" /mnt/boot
 
-# 5. Package Installation
-echo "[*] Initializing pacman and pulling base package tree..."
+# 5. Enable Multilib on Live Host & Install Packages
+echo "[*] Enabling multilib repository on live environment..."
+sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
+pacman -Sy --noconfirm
 
+echo "[*] Running pacstrap to install packages to new root..."
 BASE_PKGS=(
     base base-devel linux-zen linux-zen-headers linux-firmware intel-ucode
     btrfs-progs dosfstools e2fsprogs git nano bash-completion curl wget
@@ -227,27 +235,25 @@ cat <<HOSTS > /etc/hosts
 127.0.1.1   $HOSTNAME.localdomain $HOSTNAME
 HOSTS
 
-# Enable Multilib & Pacman Quality-of-Life
+# Enable Multilib in Target System
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
 
-# Makepkg Optimizations: All CPU cores & max-threaded zstd packaging
+# Makepkg Optimizations
 sed -i 's/^#MAKEFLAGS="-j2"/MAKEFLAGS="-j\$(nproc)"/' /etc/makepkg.conf
 sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 -)/' /etc/makepkg.conf
 
-# Users & Sudo Setup (Temporary NOPASSWD for automated Paru installation)
+# Users & Sudo Setup
 echo "root:$ROOT_PASS" | chpasswd
 useradd -m -G wheel,video,audio,storage,gamemode -s /bin/bash "$USERNAME"
 echo "$USERNAME:$USER_PASS" | chpasswd
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 
-# Kill Baloo file indexer in KDE to save I/O and CPU
+# Disable Baloo file indexer in KDE to save I/O and CPU
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
 
-# ==============================================================================
-# AUR HELPER (PARU-BIN) & ANANICY-CPP INSTALLATION
-# ==============================================================================
+# AUR Helper (paru-bin) & Ananicy-CPP
 echo "[*] Building and installing Paru AUR Helper..."
 sudo -u "$USERNAME" bash -c '
     cd /tmp
@@ -257,16 +263,13 @@ sudo -u "$USERNAME" bash -c '
     rm -rf /tmp/paru-bin
 '
 
-echo "[*] Installing Ananicy-CPP & community rules for automatic game/thread priority..."
+echo "[*] Installing Ananicy-CPP via Paru..."
 sudo -u "$USERNAME" paru -S --noconfirm ananicy-cpp ananicy-rules-git
 
-# Restore strict sudo password check
 rm -f /etc/sudoers.d/wheel_temp
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
 
-# ==============================================================================
-# SNAPPER AUTOMATION & BOOTABLE ROLLBACKS VIA GRUB
-# ==============================================================================
+# Snapper & Grub-Btrfs Setup
 echo "[*] Initializing Snapper configuration..."
 umount /.snapshots || true
 rm -rf /.snapshots
@@ -277,7 +280,6 @@ mount -o "$BTRFS_OPTS,subvol=@snapshots" "$ROOT_PART" /.snapshots
 chmod 750 /.snapshots
 chown :wheel /.snapshots
 
-# Adjust Snapper retention limits (keep it lean: 5 hourly, 7 daily)
 sed -i 's/^TIMELINE_MIN_AGE="1800"/TIMELINE_MIN_AGE="1800"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_HOURLY="10"/TIMELINE_LIMIT_HOURLY="5"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_DAILY="10"/TIMELINE_LIMIT_DAILY="7"/' /etc/snapper/configs/root
@@ -289,9 +291,7 @@ systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
 systemctl enable grub-btrfsd.service
 
-# ==============================================================================
-# NVIDIA POWER & WAYLAND STACK + HARDWARE DECODING
-# ==============================================================================
+# Nvidia Configuration
 cat <<MODPROBE > /etc/modprobe.d/nvidia.conf
 options nvidia NVreg_PreserveVideoMemoryAllocations=1
 options nvidia NVreg_TemporaryFilePath=/var/tmp
@@ -321,19 +321,16 @@ sed -i 's/^MODULES=()/MODULES=(btrfs i915 nvidia nvidia_modeset nvidia_uvm nvidi
 mkinitcpio -P
 
 cat <<ENV >> /etc/environment
-# Video Hardware Acceleration (NVDEC + QuickSync)
 LIBVA_DRIVER_NAME=nvidia
 NVD_BACKEND=direct
 MOZ_DISABLE_RDD_SANDBOX=1
-
-# Native Wayland flags for apps (Electron, Qt, Firefox)
 ELECTRON_OZONE_PLATFORM_HINT=auto
 __GLX_VENDOR_LIBRARY_NAME=nvidia
 GBM_BACKEND=nvidia-drm
 QT_QPA_PLATFORM=wayland;xcb
 ENV
 
-# Optimized MPV Player Configuration (GPU Next + Direct Vulkan decoding)
+# MPV Configuration
 mkdir -p /etc/mpv
 cat <<MPV > /etc/mpv/mpv.conf
 hwdec=auto-safe
@@ -345,21 +342,14 @@ demuxer-max-bytes=200MiB
 ytdl-format=bestvideo[height<=?1080]+bestaudio/best
 MPV
 
-# ==============================================================================
-# BOOTLOADER WITH LATENCY & SPLIT-LOCK MITIGATION TWEAKS
-# ==============================================================================
-# split_lock_mitigate=0: Eliminates severe FPS stutter in Steam/Wine games
-# transparent_hugepage=madvise: Avoids background memory compaction spikes
+# GRUB Setup
 GRUB_CMD="loglevel=3 quiet nvidia-drm.modeset=1 nvidia_drm.fbdev=1 nvidia.NVreg_PreserveVideoMemoryAllocations=1 nowatchdog split_lock_mitigate=0 transparent_hugepage=madvise cpufreq.default_governor=schedutil"
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"\$GRUB_CMD\"|" /etc/default/grub
 
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ArchLinux
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# ==============================================================================
-# AUDIO, KERNEL & NETWORK LATENCY TUNING
-# ==============================================================================
-# PipeWire Low Latency Config (128 buffer, 48kHz for low-latency desktop audio)
+# PipeWire Low Latency
 mkdir -p /etc/pipewire/pipewire.conf.d
 cat <<PW > /etc/pipewire/pipewire.conf.d/99-lowlatency.conf
 context.properties = {
@@ -370,7 +360,7 @@ context.properties = {
 }
 PW
 
-# ZRAM: 100% of RAM with ZSTD Compression
+# ZRAM
 cat <<ZRAM > /etc/systemd/zram-generator.conf
 [zram0]
 zram-size = ram
@@ -378,38 +368,33 @@ compression-algorithm = zstd
 swap-priority = 100
 ZRAM
 
-# Sysctl Performance Profiles
+# Performance Sysctl
 cat <<SYSCTL > /etc/sysctl.d/99-performance.conf
-# Virtual Memory tuning
 vm.swappiness = 150
 vm.vfs_cache_pressure = 50
 vm.dirty_background_ratio = 5
 vm.dirty_ratio = 10
 vm.page-cluster = 0
-
-# Network: BBR + CAKE (Bufferbloat mitigation)
 net.core.default_qdisc = cake
 net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_fastopen = 3
 net.core.netdev_max_backlog = 16384
 net.core.somaxconn = 8192
-
-# File handles
 fs.file-max = 2097152
 SYSCTL
 
-# Dynamic I/O Scheduler Rules (none for NVMe, BFQ for mechanical/SATA)
+# Dynamic I/O Schedulers
 cat <<UDEV > /etc/udev/rules.d/60-ioschedulers.rules
 ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
 ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="bfq"
 ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
 UDEV
 
-# Firewall Configuration (Strict incoming block, open outgoing)
+# Firewall Configuration
 ufw default deny incoming
 ufw default allow outgoing
 
-# User shell aliases (Fastfetch, eza, bat)
+# Shell Aliases
 cat <<'BASHRC' >> "/home/$USERNAME/.bashrc"
 alias ls='eza --icons'
 alias ll='eza -lh --icons --git'
@@ -419,7 +404,7 @@ alias fetch='fastfetch'
 BASHRC
 chown "$USERNAME:$USERNAME" "/home/$USERNAME/.bashrc"
 
-# Enable Services
+# Enable System Services
 systemctl enable sddm.service
 systemctl enable NetworkManager.service
 systemctl enable fstrim.timer
