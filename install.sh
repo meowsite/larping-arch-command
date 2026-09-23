@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V7] - Ultimate Power-User Arch Linux Installer
+# ARCH EXTREME [V8] - Ultimate Power-User Arch Linux Installer
 # 8-Stage Startup Configurator | Max Overdrive Tuning | Multi-Kernel Selection
 # Curated 10-App Suite | Zen/Btrfs/Snapper/NVDEC/QuickSync/Hungarian Stack
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V7"
+SCRIPT_VERSION="V8"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -31,12 +31,12 @@ swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
- █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗███████╗
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║╚════██║
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║    ██╔╝
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝   ██╔╝ 
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝    ██╔╝  
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝     ╚═╝   
+ █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██████╗ 
+██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██╔══██╗
+███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║╚█████╔╝
+██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝██╔══██╗
+██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ╚██████╔╝
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝   ╚═════╝ 
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
 echo "                  Interactive 8-Stage System Configurator       "
@@ -121,12 +121,12 @@ echo "  2) Enable Auto-Login (Bypass login screen, instant desktop boot)"
 read -rp "Select Option [1 or 2, default: 1]: " AUTOLOGIN_CHOICE
 SDDM_AUTOLOGIN="${AUTOLOGIN_CHOICE:-1}"
 
-# --- CHOICE 8: Preinstalled Application Suite (Select from Top 10) ---
+# --- CHOICE 8: Preinstalled Application Suite ---
 echo ""
 echo "--- [CHOICE 8/8] Curated Preinstalled Application Suite ---"
 echo "  [1]  Firefox          (Hardened browser with VA-API hardware decode)"
 echo "  [2]  Steam            (Vulkan & 32-bit gaming libraries ready)"
-echo "  [3]  Lutris + Wine    (Wine-Staging + dependencies for non-Steam games)"
+echo "  [3]  Lutris + Wine    (Wine-Staging + winetricks for non-Steam games)"
 echo "  [4]  Discord          (Preconfigured for native Wayland execution)"
 echo "  [5]  VS Code (OSS)    (Code - OSS binary with development tools)"
 echo "  [6]  Spotify          (Official native desktop launcher)"
@@ -139,9 +139,7 @@ echo "Enter app numbers separated by spaces (e.g., '1 2 4 5 7'), 'all', or 'none
 read -rp "Select Apps [Default: 1 2 4]: " SELECTED_APPS
 SELECTED_APPS="${SELECTED_APPS:-1 2 4}"
 
-# Parse App Selections
 APP_PKGS=()
-APP_AUR_PKGS=()
 
 if [[ "$SELECTED_APPS" == "all" ]]; then
     SELECTED_APPS="1 2 3 4 5 6 7 8 9 10"
@@ -152,7 +150,8 @@ if [[ "$SELECTED_APPS" != "none" ]]; then
         case "$item" in
             1) APP_PKGS+=(firefox) ;;
             2) APP_PKGS+=(steam) ;;
-            3) APP_PKGS+=(lutris wine-staging winetricks giflib lib32-giflib) ;;
+            # [V8 PATCH] Removed dropped 'lib32-giflib'; wine-staging handles its own multilib deps
+            3) APP_PKGS+=(lutris wine-staging winetricks giflib) ;;
             4) APP_PKGS+=(discord) ;;
             5) APP_PKGS+=(code) ;;
             6) APP_PKGS+=(spotify-launcher) ;;
@@ -258,7 +257,6 @@ BASE_PKGS=(
     gamemode lib32-gamemode bluez bluez-utils xdg-user-dirs
 )
 
-# Graphics Packages Based on Choice 4
 GRAPHICS_PKGS=(mesa vulkan-intel intel-media-driver libva-intel-driver libva-utils)
 if [[ "$GPU_PROFILE" == "nvidia-open" ]]; then
     GRAPHICS_PKGS+=(nvidia-open-dkms nvidia-utils lib32-nvidia-utils nvidia-settings nvidia-prime libva-nvidia-driver vdpauinfo)
@@ -384,7 +382,6 @@ sed -i 's/^#MAKEFLAGS="-j2"/MAKEFLAGS="-j\$(nproc)"/' /etc/makepkg.conf
 sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 -)/' /etc/makepkg.conf
 
 if [[ "$OPT_TIER" == "1" ]]; then
-    # Max Overdrive: Native CPU optimization flags for compilation
     sed -i 's/-march=x86-64 -mtune=generic/-march=native -O3 -pipe -fno-plt -fexceptions/' /etc/makepkg.conf
 fi
 
@@ -475,7 +472,7 @@ sed -i 's/^TIMELINE_LIMIT_WEEKLY="0"/TIMELINE_LIMIT_WEEKLY="0"/' /etc/snapper/co
 sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_YEARLY="0"/TIMELINE_LIMIT_YEARLY="0"/' /etc/snapper/configs/root
 
-snapper --no-dbus -c root create -d "ARCH_EXTREME_V7_BASE" || true
+snapper --no-dbus -c root create -d "ARCH_EXTREME_V8_BASE" || true
 
 systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
@@ -587,7 +584,6 @@ if [[ "$GPU_PROFILE" != "intel-only" ]]; then
 fi
 
 if [[ "$OPT_TIER" == "1" ]]; then
-    # MAX OVERDRIVE: Disables CPU execution mitigations and split-lock penalties for highest gaming/raw throughput
     BASE_CMDLINE="$BASE_CMDLINE mitigations=off split_lock_mitigate=0 isolcpus= managed_irq"
 else
     BASE_CMDLINE="$BASE_CMDLINE split_lock_mitigate=0"
@@ -600,7 +596,6 @@ grub-mkconfig -o /boot/grub/grub.cfg
 # PipeWire Low Latency
 mkdir -p /etc/pipewire/pipewire.conf.d
 if [[ "$OPT_TIER" == "1" ]]; then
-    # 64 quantum buffer (~1.3ms ultra-low audio latency)
     PW_QUANTUM=64
 else
     PW_QUANTUM=128
