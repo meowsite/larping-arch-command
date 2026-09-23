@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ARCH EXTREME [V4] - Ultimate Power-User Arch Linux Installer
+# ARCH EXTREME [V5] - Ultimate Power-User Arch Linux Installer
 # Zen Kernel | Btrfs + Snapper Rollbacks | NVDEC & QuickSync HW Video | Paru / Yay
 # Ananicy-CPP + CachyOS Rules | UFW Firewall | Hungarian Stack | Clean KDE Plasma
 # ==============================================================================
 
 set -euo pipefail
 
-SCRIPT_VERSION="V4"
+SCRIPT_VERSION="V5"
 
 # 1. Pre-flight Checks & Stale Mount Cleanup
 if [[ $EUID -ne 0 ]]; then
@@ -32,12 +32,12 @@ swapoff -a 2>/dev/null || true
 
 clear
 cat << "BANNER"
- █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗██╗   ██╗
-██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██║   ██║
-███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║██║   ██║
-██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝███████║
-██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ╚════██║
-╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝       ╚═╝
+ █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗██╗  ██╗████████╗██████╗ ███████╗███╗   ███╗███████╗    ██╗   ██╗███████╗
+██╔══██╗██╔══██╗██╔════╝██║  ██║    ██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝████╗ ████║██╔════╝    ██║   ██║██╔════╝
+███████║██████╔╝██║     ███████║    █████╗   ╚███╔╝    ██║   ██████╔╝█████╗  ██╔████╔██║█████╗      ██║   ██║███████╗
+██╔══██║██╔══██╗██║     ██╔══██║    ██╔══╝   ██╔██╗    ██║   ██╔══██╗██╔══╝  ██║╚██╔╝██║██╔══╝      ╚██╗ ██╔╝╚════██║
+██║  ██║██║  ██║╚██████╗██║  ██║    ███████╗██╔╝ ██╗   ██║   ██║  ██║███████╗██║ ╚═╝ ██║███████╗     ╚████╔╝ ███████║
+╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝    ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚══════╝      ╚═══╝  ╚══════╝
 BANNER
 echo "                         === ARCH EXTREME [$SCRIPT_VERSION] ==="
 echo ""
@@ -218,7 +218,7 @@ NVIDIA_PKG="$4"
 ln -sf /usr/share/zoneinfo/Europe/Budapest /etc/localtime
 hwclock --systohc
 
-# Locales
+# Locales Generation
 sed -i 's/^#hu_HU.UTF-8 UTF-8/hu_HU.UTF-8 UTF-8/' /etc/locale.gen
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
@@ -239,12 +239,38 @@ LC_MEASUREMENT=hu_HU.UTF-8
 LOC
 fi
 
-# Hungarian Console Font and Keymap
+# ==============================================================================
+# [V5 PATCH] HUNGARIAN KEYBOARD SETUP (CONSOLE, SDDM, X11 & WAYLAND)
+# ==============================================================================
+
+# 1. Virtual Console (TTY)
 cat <<VCON > /etc/vconsole.conf
 KEYMAP=hu
 FONT=lat2-16
 FONT_MAP=8859-2
 VCON
+
+# 2. Global X11 / Wayland / Display Manager Keyboard Mapping
+mkdir -p /etc/X11/xorg.conf.d
+cat <<XKB > /etc/X11/xorg.conf.d/00-keyboard.conf
+Section "InputClass"
+        Identifier "system-keyboard"
+        MatchIsKeyboard "on"
+        Option "XkbLayout" "hu,us"
+        Option "XkbModel" "pc105"
+        Option "XkbVariant" "qwertz,"
+        Option "XkbOptions" "grp:alt_shift_toggle"
+EndSection
+XKB
+
+# 3. System-level keyboard defaults (respected by SDDM Wayland greeter)
+mkdir -p /etc/default
+cat <<KBD > /etc/default/keyboard
+XKBLAYOUT="hu,us"
+XKBMODEL="pc105"
+XKBVARIANT="qwertz,"
+XKBOPTIONS="grp:alt_shift_toggle"
+KBD
 
 # Hostname & Network
 echo "$HOSTNAME" > /etc/hostname
@@ -271,9 +297,17 @@ sed -i 's/^COMPRESSZST=(zstd -c -z -q -)/COMPRESSZST=(zstd -c -z -q --threads=0 
 useradd -m -G wheel,video,audio,storage,gamemode -s /bin/bash "$USERNAME"
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel_temp
 
-# User XDG directories & disable Baloo file indexer
+# Initialize XDG directories & disable Baloo file indexer
 sudo -u "$USERNAME" xdg-user-dirs-update || true
 sudo -u "$USERNAME" kwriteconfig6 --file baloofilerc --group "Basic Settings" --key "Indexing-Enabled" false || true
+
+# 4. Configure KDE Plasma User Keyboard (Hungarian primary + US secondary with Alt+Shift toggle)
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Use" "true"
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "LayoutList" "hu,us"
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "LayoutLooping" "true"
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Model" "pc105"
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "Options" "grp:alt_shift_toggle"
+sudo -u "$USERNAME" kwriteconfig6 --file kxkbrc --group "Layout" --key "DisplayNames" "HU,US"
 
 # AUR Helper Setup: Paru with automatic Yay fallback
 echo "[*] Building and configuring AUR helper..."
@@ -316,12 +350,12 @@ if [[ -z "$AUR_TOOL" ]]; then
     AUR_TOOL="yay"
 fi
 
-# [V4 PATCH] Standalone Ananicy-CPP + Direct CachyOS Rules Injection (Immune to AUR removals)
+# Ananicy-CPP + CachyOS Rules
 echo "[*] Installing Ananicy-CPP via $AUR_TOOL..."
 sudo -u "$USERNAME" "$AUR_TOOL" -S --noconfirm ananicy-cpp || true
 
 if command -v ananicy-cpp &>/dev/null; then
-    echo "[*] Deploying optimized community process rules directly to /etc/ananicy.d/..."
+    echo "[*] Deploying optimized process rules directly to /etc/ananicy.d/..."
     mkdir -p /etc/ananicy.d
     if git clone --depth=1 https://github.com/CachyOS/ananicy-rules.git /tmp/cachyos-rules 2>/dev/null; then
         cp -rn /tmp/cachyos-rules/* /etc/ananicy.d/ 2>/dev/null || true
@@ -352,8 +386,7 @@ sed -i 's/^TIMELINE_LIMIT_WEEKLY="0"/TIMELINE_LIMIT_WEEKLY="0"/' /etc/snapper/co
 sed -i 's/^TIMELINE_LIMIT_MONTHLY="10"/TIMELINE_LIMIT_MONTHLY="0"/' /etc/snapper/configs/root
 sed -i 's/^TIMELINE_LIMIT_YEARLY="0"/TIMELINE_LIMIT_YEARLY="0"/' /etc/snapper/configs/root
 
-# [V4 PATCH] Create baseline snapshot so grub-btrfs immediately generates functional entries
-snapper --no-dbus -c root create -d "ARCH_EXTREME_V4_BASE" || true
+snapper --no-dbus -c root create -d "ARCH_EXTREME_V5_BASE" || true
 
 systemctl enable snapper-timeline.timer
 systemctl enable snapper-cleanup.timer
@@ -399,7 +432,7 @@ GBM_BACKEND=nvidia-drm
 QT_QPA_PLATFORM=wayland;xcb
 ENV
 
-# [V4 PATCH] SDDM Wayland Greeter Configuration for flawless Nvidia login
+# SDDM Wayland Greeter Configuration
 mkdir -p /etc/sddm.conf.d
 cat <<SDDM > /etc/sddm.conf.d/wayland.conf
 [General]
